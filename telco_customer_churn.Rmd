@@ -27,20 +27,17 @@ par(mfrow = c(1, 1))
 
 # Data Preparation
 
+## Univariate Descriptive Analysis
+
+### Qualitative and quantitative
+
 No structural errors were found (coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
 
 Data types were propperly adapted to categorial when required (using the `as.factor` function).
 
-Additionally, a new derived column was created from `tenure`.
+Original numeric variables corresponding to qualitative concepts (`SeniorCitizen`) were converted to factors.
 
 ```{r}
-head(customer_churn)
-
-str(customer_churn)
-
-summary(customer_churn)
-
-
 customer_churn$gender <- as.factor(customer_churn$gender)
 customer_churn$SeniorCitizen <- as.factor(
   customer_churn$SeniorCitizen,
@@ -61,12 +58,97 @@ customer_churn$Contract <- as.factor(customer_churn$Contract)
 customer_churn$PaperlessBilling <- as.factor(customer_churn$PaperlessBilling)
 customer_churn$PaymentMethod <- as.factor(customer_churn$PaymentMethod)
 customer_churn$Churn <- as.factor(customer_churn$Churn)
+```
 
+
+Original numeric varirables corresponding to real quantitative concepts (`MonthlyCharges` and `tenure`) are kept as numeric but additional factors are created as descretization of each numeric variable (`MonthlyChargesGroup` and `TenureGroup`).
+
+```{r}
+customer_churn$MonthlyChargesGroup <- cut(
+  customer_churn$MonthlyCharges,
+  breaks = quantile(
+    customer_churn$MonthlyCharges,
+    probs = c(0, 0.25, 0.5, 0.75, 1)
+  ),
+  labels = c("Low", "Medium", "High", "Very high"),
+  include.lowest = TRUE
+)
 customer_churn$TenureGroup <- cut(
   customer_churn$tenure,
-  breaks = c(0, 9, 29, 55, 73),
+  breaks = quantile(
+    customer_churn$tenure,
+    probs = c(0, 0.25, 0.5, 0.75, 1)
+  ),
   labels = c("Very short", "Short", "Long", "Very long"),
   include.lowest = TRUE
 )
 
+summary(customer_churn)
+```
+
+### Exploratory Data Analysis
+
+The most common number of months which the customer has stayed in the company is very short and the histogram shows a U shape distribution. This is, most clients stay short or long time, and not medium. With clear predominance of the first group (very short tenure).
+
+```{r}
+library(ggplot2)
+
+ggplot(customer_churn, aes(x = tenure)) +
+  geom_histogram(bins = 20) +
+  labs(x = "Tenure (months)", y = "Count", title = "Histogram of tenure")
+```
+
+Clients who leave have higher monthly charges than those who don't leave.
+
+```{r}
+ggplot(customer_churn, aes(x = Churn, y = MonthlyCharges)) +
+  geom_boxplot() +
+  labs(
+    x = "Churn",
+    y = "Monthly charges($)",
+    title = "Boxplot of monthly charges by churn"
+  )
+```
+
+Clients who leave have mostly a month to month contract term.
+
+```{r}
+ggplot(customer_churn, aes(x = Contract, fill = Churn)) +
+  geom_bar(position = "dodge") +
+  labs(
+    x = "Contract type",
+    y = "Count",
+    title = "Barplot of contract type by churn"
+  )
+```
+
+Clients who leave have are charged a low total amount and high monthly amount.
+
+```{r}
+ggplot(
+  customer_churn,
+  aes(
+    x = TotalCharges,
+    y = MonthlyCharges,
+    color = Churn
+  )
+) +
+  geom_point() +
+  labs(
+    x = "Total charges ($)",
+    y = "Monthly charges ($)",
+    title = "Scatterplot of total and monthly charges by churn"
+  )
+```
+
+Client tenure and monthly charged amount are posivly correlated but not strongly.
+
+```{r}
+cor(customer_churn[, c("tenure", "MonthlyCharges")])
+```
+
+There is no significant association between gender and churn.
+
+```{r}
+chisq.test(customer_churn$gender, customer_churn$Churn)
 ```
