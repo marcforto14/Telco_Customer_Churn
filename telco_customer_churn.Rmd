@@ -19,3 +19,54 @@ The contribution of each member is visible through the following repository: htt
 
 And the task distribution: https://github.com/users/marcforto14/projects/1
 
+```
+rm(list = ls())
+customer_churn <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+par(mfrow = c(1, 1))
+```
+
+# Data Preparation
+
+No structural errors were found (coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
+
+Data types were propperly adapted to categorial when required (using the `as.factor` function).
+
+Additionally, a new derived column was created from `tenure`.
+
+```{r}
+head(customer_churn)
+
+str(customer_churn)
+
+summary(customer_churn)
+
+
+customer_churn$gender <- as.factor(customer_churn$gender)
+customer_churn$SeniorCitizen <- as.factor(
+  customer_churn$SeniorCitizen,
+  levels = c("No", "Yes")
+)
+customer_churn$Partner <- as.factor(customer_churn$Partner)
+customer_churn$Dependents <- as.factor(customer_churn$Dependents)
+customer_churn$PhoneService <- as.factor(customer_churn$PhoneService)
+customer_churn$MultipleLines <- as.factor(customer_churn$MultipleLines)
+customer_churn$InternetService <- as.factor(customer_churn$InternetService)
+customer_churn$OnlineSecurity <- as.factor(customer_churn$OnlineSecurity)
+customer_churn$OnlineBackup <- as.factor(customer_churn$OnlineBackup)
+customer_churn$DeviceProtection <- as.factor(customer_churn$DeviceProtection)
+customer_churn$TechSupport <- as.factor(customer_churn$TechSupport)
+customer_churn$StreamingTV <- as.factor(customer_churn$StreamingTV)
+customer_churn$StreamingMovies <- as.factor(customer_churn$StreamingMovies)
+customer_churn$Contract <- as.factor(customer_churn$Contract)
+customer_churn$PaperlessBilling <- as.factor(customer_churn$PaperlessBilling)
+customer_churn$PaymentMethod <- as.factor(customer_churn$PaymentMethod)
+customer_churn$Churn <- as.factor(customer_churn$Churn)
+
+customer_churn$TenureGroup <- cut(
+  customer_churn$tenure,
+  breaks = c(0, 9, 29, 55, 73),
+  labels = c("Very short", "Short", "Long", "Very long"),
+  include.lowest = TRUE
+)
+
+```
