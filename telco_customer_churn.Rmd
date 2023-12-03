@@ -1,0 +1,21 @@
+---
+title: "House Prices"
+author: "Marc Fortó Cornella & Javier Herrer Torres"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 3
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+subtitle: 'SIM - Assignment 2'
+classoption: a4paper
+---
+
+GitHub was used as Version Control System for this project.
+
+The contribution of each member is visible through the following repository: https://github.com/marcforto14/Telco_Customer_Churn
+
+And the task distribution: https://github.com/users/marcforto14/projects/1
+
