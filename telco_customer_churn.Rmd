@@ -1,5 +1,5 @@
 ---
-title: "House Prices"
+title: "Telco Customer Churn"
 author: "Marc Fortó Cornella & Javier Herrer Torres"
 date: "`r Sys.Date()`"
 output:
@@ -19,7 +19,12 @@ The contribution of each member is visible through the following repository: htt
 
 And the task distribution: https://github.com/users/marcforto14/projects/1
 
-```
+```{r}
+library(car)
+library(missMDA)
+library(ggplot2)
+library(FactoMineR)
+library(chemometrics)
 rm(list = ls())
 customer_churn <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
 par(mfrow = c(1, 1))
@@ -33,15 +38,15 @@ par(mfrow = c(1, 1))
 
 No structural errors were found (coding errors, trailing blanks in labels, lower/upper case consistency, etc.).
 
-Data types were propperly adapted to categorial when required (using the `as.factor` function).
+Data types were properly adapted to categorical when required (using the `as.factor` function).
 
 Original numeric variables corresponding to qualitative concepts (`SeniorCitizen`) were converted to factors.
 
 ```{r}
 customer_churn$gender <- as.factor(customer_churn$gender)
-customer_churn$SeniorCitizen <- as.factor(
+customer_churn$SeniorCitizen <- factor(
   customer_churn$SeniorCitizen,
-  levels = c("No", "Yes")
+  labels = c("No", "Yes")
 )
 customer_churn$Partner <- as.factor(customer_churn$Partner)
 customer_churn$Dependents <- as.factor(customer_churn$Dependents)
@@ -61,10 +66,10 @@ customer_churn$Churn <- as.factor(customer_churn$Churn)
 ```
 
 
-Original numeric varirables corresponding to real quantitative concepts (`MonthlyCharges` and `tenure`) are kept as numeric but additional factors are created as descretization of each numeric variable (`MonthlyChargesGroup` and `TenureGroup`).
+Original numeric variables corresponding to real quantitative concepts (`MonthlyCharges` and `tenure`) are kept as numeric but additional factors are created as discretization of each numeric variable (`f.MonthlyCharges` and `f.tenure`).
 
 ```{r}
-customer_churn$MonthlyChargesGroup <- cut(
+customer_churn$f.MonthlyCharges <- cut(
   customer_churn$MonthlyCharges,
   breaks = quantile(
     customer_churn$MonthlyCharges,
@@ -73,7 +78,7 @@ customer_churn$MonthlyChargesGroup <- cut(
   labels = c("Low", "Medium", "High", "Very high"),
   include.lowest = TRUE
 )
-customer_churn$TenureGroup <- cut(
+customer_churn$f.tenure <- cut(
   customer_churn$tenure,
   breaks = quantile(
     customer_churn$tenure,
@@ -82,11 +87,258 @@ customer_churn$TenureGroup <- cut(
   labels = c("Very short", "Short", "Long", "Very long"),
   include.lowest = TRUE
 )
-
-summary(customer_churn)
 ```
 
-### Exploratory Data Analysis
+### Data quality report
+
+*variable 2: gender*
+
+This is a binary categorical variable with a nearly balanced distribution between females and males. It contains no missing values thus imputation is not needed.
+```{r out.width="50%"}
+prop.table(table(customer_churn$gender))
+
+# Missing values
+sum(is.na(customer_churn$gender))
+```
+
+*variable 3: SeniorCitizen*
+
+This is a binary categorical variable. It indicates that 84% of the customers are not senior citizens. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$SeniorCitizen))
+
+# Missing values
+sum(is.na(customer_churn$SeniorCitizen))
+```
+
+*variable 4: Partner*
+
+This is a binary categorical variable with a nearly balanced distribution between customers that has a partner or not. It contains no missing values thus imputation is not needed.
+```{r out.width="50%"}
+prop.table(table(customer_churn$Partner))
+
+# Missing values
+sum(is.na(customer_churn$Partner))
+```
+
+*variable 5: Dependents*
+
+This is a binary categorical variable. It indicates that 70% of the customers have dependents. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$Dependents))
+
+# Missing values
+sum(is.na(customer_churn$Dependents))
+```
+
+*variable 6: tenure*
+
+tenure is a numerical variable with 0 NA's.  Then we used a Boxplot to visualize the distribution of the values of this variable. The variable has no outliers.
+```{r out.width="50%"}
+# Missing values
+sum(is.na(customer_churn$tenure))
+# Univariant Outliers
+length(Boxplot(customer_churn$tenure, id = list(n = Inf)))
+```
+
+*variable 7: PhoneService*
+
+This is a binary categorical variable. It indicates that 90% of the customers have a phone service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$PhoneService))
+
+# Missing values
+sum(is.na(customer_churn$PhoneService))
+```
+
+*variable 8: MultipleLines*
+
+This is a categorical variable with three levels. It indicates that 48% of the customers do not have multiple lines, 42% do have multiple lines, and the remaining 10% do not have phone service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$MultipleLines))
+
+# Missing values
+sum(is.na(customer_churn$MultipleLines))
+```
+
+*variable 9: InternetService*
+
+This is a categorical variable with three levels. It indicates that 34% of the customers have DSL, 44% have Fiber optic, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$InternetService))
+
+# Missing values
+sum(is.na(customer_churn$InternetService))
+```
+
+*variable 10: OnlineSecurity*
+
+This is a categorical variable with three levels. It indicates that 50% of the customers have no online security, 29% have online security, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$OnlineSecurity))
+
+# Missing values
+sum(is.na(customer_churn$OnlineSecurity))
+```
+
+*variable 11: OnlineBackup*
+
+This is a categorical variable with three levels. It indicates that 44% of the customers have no online backup, 34% have online backup, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$OnlineBackup))
+
+# Missing values
+sum(is.na(customer_churn$OnlineBackup))
+```
+
+*variable 12: DeviceProtection*
+
+This is a categorical variable with three levels. It indicates that 44% of the customers have no device protection, 34% have device protection, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$DeviceProtection))
+
+# Missing values
+sum(is.na(customer_churn$DeviceProtection))
+```
+
+*variable 13: TechSupport*
+
+This is a categorical variable with three levels. It indicates that 49% of the customers have no tech support, 29% have tech support, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$TechSupport))
+
+# Missing values
+sum(is.na(customer_churn$TechSupport))
+```
+
+*variable 14: StreamingTV*
+
+This is a categorical variable with three levels. It indicates that 40% of the customers have no  streaming TV, 38% have streaming TV, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$StreamingTV))
+
+# Missing values
+sum(is.na(customer_churn$StreamingTV))
+```
+
+*variable 15: StreamingMovies*
+
+This is a categorical variable with three levels. It indicates that 40% of the customers have no streaming movies, 39% have streaming movies, and the remaining 22% do not have internet service. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$StreamingMovies))
+
+# Missing values
+sum(is.na(customer_churn$StreamingMovies))
+```
+
+*variable 16: Contract*
+
+This is a categorical variable with three levels. It indicates that 55% of the customers have a Month-to-month contract term, 21% have a One year contract term, and the remaining 24% have a Two year contract term. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$Contract))
+
+# Missing values
+sum(is.na(customer_churn$Contract))
+```
+
+*variable 17: PaperlessBilling*
+
+This is a binary categorical variable. It indicates that 59% of the customers have a paperless billing. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$PaperlessBilling))
+
+# Missing values
+sum(is.na(customer_churn$PaperlessBilling))
+```
+
+*variable 18: PaymentMethod*
+
+This is a categorical variable with four levels. Electronic check appears to be the most frequently used method, followed by mailed check, credit card (automatic), and bank transfer (automatic) similarly distributed. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$PaymentMethod))
+
+# Missing values
+sum(is.na(customer_churn$PaymentMethod))
+```
+
+*variable 19: MonthlyCharges*
+
+MonthlyCharges is a numerical variable with 0 NA's. We used a Boxplot to visualize the distribution of the values of this variable. The variable has no outliers.
+```{r out.width="50%"}
+# Missing values
+sum(is.na(customer_churn$MonthlyCharges))
+# Univariant Outliers
+length(Boxplot(customer_churn$MonthlyCharges, id = list(n = Inf)))
+```
+
+*variable 20: TotalCharges*
+
+TotalCharges is a numerical variable with 11 NA's. These NA's correspond to customers with 0 month of tenure with the company. We will then equal their TotalCharges to 0.  We used a Boxplot to visualize the distribution of the values of this variable. The variable has no outliers. We create an additional ordinal TotalCharges factor "f.TotalCharges" to create a discretisation according to the quartiles.
+```{r out.width="50%"}
+# Missing values
+sum(is.na(customer_churn$TotalCharges))
+ll_na <- which(is.na(customer_churn$TotalCharges))
+customer_churn[ll_na,]
+customer_churn$TotalCharges[ll_na] = 0
+
+# Univariant Outliers
+length(Boxplot(customer_churn$TotalCharges, id = list(n = Inf)))
+
+customer_churn$f.TotalCharges <- cut(
+  customer_churn$TotalCharges,
+  breaks = quantile(
+    customer_churn$TotalCharges,
+    probs = c(0, 0.25, 0.5, 0.75, 1)
+  ),
+  labels = c("Low", "Medium", "High", "Very high"),
+  include.lowest = TRUE
+)
+```
+
+*variable 21: Churn*
+
+This is a binary categorical target variable. It indicates that 73% of the customers do not churned. There are no missing values, so imputation is not required.
+```{r out.width="50%"}
+prop.table(table(customer_churn$Churn))
+
+# Missing values
+sum(is.na(customer_churn$Churn))
+```
+
+**Inconsistencies**
+
+There are no inconsistencies on the Phone Service and Internet Service variables. 
+```{r out.width="50%"}
+# Phone Service
+sum(customer_churn$PhoneService == "No")
+sum(customer_churn$PhoneService == "No" | customer_churn$MultipleLines == "No internet service")
+# Internet Service
+sum(customer_churn$InternetService == "No")
+sum(customer_churn$InternetService == "No" | customer_churn$OnlineSecurity == "No internet service" | customer_churn$OnlineBackup == "No internet service" | customer_churn$DeviceProtection == "No internet service" | customer_churn$TechSupport == "No internet service" | customer_churn$StreamingTV == "No internet service" | customer_churn$StreamingMovies == "No internet service")
+```
+
+**Variables**
+
+After exploring all variables, only 'TotalCharges' exhibits missing data, placing it last in terms of missingness. No variables show univariate outliers, suggesting minimal noise in the dataset.
+
+**Multivariate Outliers**
+
+Moutlier is applied on the 3 only numerical variables to find multivariate outliers. A threshold of 2% is chosen as significance level because it already returns a significant amount of outliers, more exactly around 2.5% of instances. It is chosen to delete these outliers from the data set for the rest of the project. Almost all of these outliers correspond to customers with Very Long tenure, Low Monthly Charges and Medium/High Total Charges.
+```{r out.width="50%"}
+res.out <- Moutlier(customer_churn[, c(6,19,20)], quantile = 0.98, col = "blue")
+#which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))
+length(which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))) / 7043
+
+par(mfrow = c(1, 1))
+plot(res.out$md, res.out$rd)
+abline(h = res.out$cutoff, col = "red")
+abline(v = res.out$cutoff, col = "red")
+# summary(house_prices[which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff)), ])
+# summary(house_prices)
+customer_churn <- customer_churn[-which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff)), ]
+```
+
+# Exploratory Data Analysis
 
 The most common number of months which the customer has stayed in the company is very short and the histogram shows a U shape distribution. This is, most clients stay short or long time, and not medium. With clear predominance of the first group (very short tenure).
 
