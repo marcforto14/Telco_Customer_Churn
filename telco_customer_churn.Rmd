@@ -338,6 +338,19 @@ abline(v = res.out$cutoff, col = "red")
 customer_churn <- customer_churn[-which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff)), ]
 ```
 
+# Split data
+
+```{r}
+set.seed(123)
+train_index <- sample(
+  seq_len(nrow(customer_churn)),
+  size = floor(0.8 * nrow(customer_churn))
+)
+
+customer_churn_test <- customer_churn[-train_index, ]
+customer_churn <- customer_churn[train_index, ]
+```
+
 # Exploratory Data Analysis
 
 The most common number of months which the customer has stayed in the company is very short and the histogram shows a U shape distribution. This is, most clients stay short or long time, and not medium. With clear predominance of the first group (very short tenure).
@@ -403,4 +416,56 @@ There is no significant association between gender and churn.
 
 ```{r}
 chisq.test(customer_churn$gender, customer_churn$Churn)
+```
+
+# Profiling and Feature Selection
+
+The Categorical Data Analysis shows the 5 most important categorical variables to predict the Customer Churn are the contract type, tenure (new categorical), online security, tech support and internet service. Diving deep into them, customers who don't leave are assocated with a two year contract, long tenure and no internet service. On the other hand, churn is associated with a monthly contract, no online security nor tech support, fiber optic and very short tenure.
+
+Regarding the quantitative variables, monthly charges is the one which contributes the most to customer churn, while total charges and tenure have the opposite effect (negative correlation).
+
+```{r}
+catdes(customer_churn, num.var = 21)
+```
+
+# Churn Modeling
+
+## Numeric variables
+
+From the total charges histogram, the variable is observed as right-skewed, meaning that it has a long tail on the right side of the distribution. This can cause problems for the glm such as violating the assumption of homoscedasticity (the variance of the error term is constant across different values of the predictor variable) affecting the accuracy and reliability of the model estimates. Thus, a log transformation is applied; and a small constant value (0.01) is added avoiding undefined values.
+
+```{r}
+hist(
+  customer_churn$TotalCharges,
+  main = "Histogram of Total Charges",
+  xlab = "Total Charges",
+  col = "lightblue"
+)
+```
+
+The numeric variables model fits the data very poorly (null deviance is 6418) although the residual deviance is slightly better (4990). The Akaike Information Criterion (AIC) which measures the trade-off between the fit and complexity of the model is 4998, which means that the model is not very parsimonious.
+
+```{r}
+model_numeric <- glm(
+  Churn ~ tenure + MonthlyCharges + log(TotalCharges + 0.01),
+  data = customer_churn,
+  family = binomial
+)
+```
+
+There is a heteroscedasticity problem, variance of the residuals is not constant across different values of the predictor nor the fitted values.
+
+Null hypothesis can not be rejected, model is nonlinear, specially on the log variable.
+
+Observations have large residuals, high leverage and high Cook's distance, meaning that they do not fit the model well and have a lot of influence on the model. 
+
+```{r}
+residualPlots(model_numeric)
+
+marginalModelPlots(model_numeric)
+
+library(effects)
+plot(allEffects(model_numeric))
+
+influencePlot(model_numeric)
 ```
