@@ -278,7 +278,7 @@ TotalCharges is a numerical variable with 11 NA's. These NA's correspond to cust
 # Missing values
 sum(is.na(customer_churn$TotalCharges))
 ll_na <- which(is.na(customer_churn$TotalCharges))
-customer_churn[ll_na,]
+#customer_churn[ll_na,]
 customer_churn$TotalCharges[ll_na] = 0
 
 # Univariant Outliers
@@ -323,19 +323,24 @@ After exploring all variables, only 'TotalCharges' exhibits missing data, placin
 
 **Multivariate Outliers**
 
-Moutlier is applied on the 3 only numerical variables to find multivariate outliers. A threshold of 2% is chosen as significance level because it already returns a significant amount of outliers, more exactly around 2.5% of instances. It is chosen to delete these outliers from the data set for the rest of the project. Almost all of these outliers correspond to customers with Very Long tenure, Low Monthly Charges and Medium/High Total Charges.
+Moutlier is applied on the 3 only numerical variables to find multivariate outliers. A threshold of 2% is chosen as significance level because it already returns a significant amount of outliers, more exactly around 2.5% of instances.
+There are 2 types of found outliers:
+\begin{itemize}
+  \item customers with Very long tenure, Low Monthly Charges and Medium/High Total Charges
+  \item customers with Very long tenure, Very high Monthly Charges and Very high Total Charges
+\end{itemize}
+The first group of customers has only PhoneService, with or without MultipleLines, while the second group has contracted all possible services.
+It is chosen not to delete these outliers from the dataset, as they contain valuable information about this type of customers and represent specific customer behaviors.
 ```{r out.width="50%"}
 res.out <- Moutlier(customer_churn[, c(6,19,20)], quantile = 0.98, col = "blue")
 #which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))
 length(which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))) / 7043
-
 par(mfrow = c(1, 1))
 plot(res.out$md, res.out$rd)
 abline(h = res.out$cutoff, col = "red")
 abline(v = res.out$cutoff, col = "red")
-# summary(house_prices[which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff)), ])
-# summary(house_prices)
-customer_churn <- customer_churn[-which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff)), ]
+ll_mvo <- which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))
+customer_churn[ll_mvo, ]
 ```
 
 # Split data
@@ -387,7 +392,8 @@ ggplot(customer_churn, aes(x = Contract, fill = Churn)) +
   )
 ```
 
-Clients who leave have are charged a low total amount and high monthly amount.
+Clients who leave are charged a low Total amount and high monthly amount.
+Client tenure and monthly charged amount are positively correlated but not strongly.
 
 ```{r}
 ggplot(
@@ -404,11 +410,6 @@ ggplot(
     y = "Monthly charges ($)",
     title = "Scatterplot of total and monthly charges by churn"
   )
-```
-
-Client tenure and monthly charged amount are posivly correlated but not strongly.
-
-```{r}
 cor(customer_churn[, c("tenure", "MonthlyCharges")])
 ```
 
@@ -420,9 +421,9 @@ chisq.test(customer_churn$gender, customer_churn$Churn)
 
 # Profiling and Feature Selection
 
-The Categorical Data Analysis shows the 5 most important categorical variables to predict the Customer Churn are the contract type, tenure (new categorical), online security, tech support and internet service. Diving deep into them, customers who don't leave are assocated with a two year contract, long tenure and no internet service. On the other hand, churn is associated with a monthly contract, no online security nor tech support, fiber optic and very short tenure.
+The Categorical Data Analysis shows the 5 most important categorical variables to predict the Customer Churn are the Contract, f.tenure (new categorical), OnlineSecurity, TechSupport and InternetService. Diving deep into them, customers who don't leave are associated with a two year contract, long tenure and no internet service. On the other hand, churn is associated with a monthly contract, no online security nor tech support, fiber optic and very short tenure.
 
-Regarding the quantitative variables, monthly charges is the one which contributes the most to customer churn, while total charges and tenure have the opposite effect (negative correlation).
+Regarding the quantitative variables, MonthlyCharges is the one which contributes the most to customer churn, while TotalCharges and tenure have the opposite effect (negative correlation).
 
 ```{r}
 catdes(customer_churn, num.var = 21)
