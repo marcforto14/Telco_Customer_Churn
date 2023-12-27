@@ -447,11 +447,12 @@ hist(
 The numeric variables model fits the data very poorly (null deviance is 6418) although the residual deviance is slightly better (4990). The Akaike Information Criterion (AIC) which measures the trade-off between the fit and complexity of the model is 4998, which means that the model is not very parsimonious.
 
 ```{r}
-model_numeric <- glm(
+model_numeric_basic <- glm(
   Churn ~ tenure + MonthlyCharges + log(TotalCharges + 0.01),
   data = customer_churn,
   family = binomial
 )
+model_numeric_basic
 ```
 
 There is a heteroscedasticity problem, variance of the residuals is not constant across different values of the predictor nor the fitted values.
@@ -461,12 +462,30 @@ Null hypothesis can not be rejected, model is nonlinear, specially on the log va
 Observations have large residuals, high leverage and high Cook's distance, meaning that they do not fit the model well and have a lot of influence on the model. 
 
 ```{r}
-residualPlots(model_numeric)
+residualPlots(model_numeric_basic)
 
-marginalModelPlots(model_numeric)
+marginalModelPlots(model_numeric_basic)
 
 library(effects)
-plot(allEffects(model_numeric))
+plot(allEffects(model_numeric_basic))
 
-influencePlot(model_numeric)
+influencePlot(model_numeric_basic)
+```
+
+The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 12.097. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
+
+```{r}
+model_numeric_best <- glm(
+  Churn ~ tenure
+  + MonthlyCharges
+  + log(TotalCharges + 0.01)
+  + tenure * MonthlyCharges * log(TotalCharges + 0.01),
+  data = customer_churn,
+  family = binomial
+)
+model_numeric_best
+
+anova(model_numeric_basic, model_numeric_best, test = "Chisq")
+
+AIC(model_numeric_basic, model_numeric_best)
 ```
