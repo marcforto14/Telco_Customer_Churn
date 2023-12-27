@@ -331,6 +331,7 @@ There are 2 types of found outliers:
 \end{itemize}
 The first group of customers has only PhoneService, with or without MultipleLines, while the second group has contracted all possible services.
 It is chosen not to delete these outliers from the dataset, as they contain valuable information about this type of customers and represent specific customer behaviors.
+
 ```{r out.width="50%"}
 res.out <- Moutlier(customer_churn[, c(6,19,20)], quantile = 0.98, col = "blue")
 #which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))
@@ -340,7 +341,7 @@ plot(res.out$md, res.out$rd)
 abline(h = res.out$cutoff, col = "red")
 abline(v = res.out$cutoff, col = "red")
 ll_mvo <- which((res.out$md > res.out$cutoff) & (res.out$rd > res.out$cutoff))
-customer_churn[ll_mvo, ]
+#customer_churn[ll_mvo, ]
 ```
 
 # Split data
@@ -413,6 +414,14 @@ ggplot(
 cor(customer_churn[, c("tenure", "MonthlyCharges")])
 ```
 
+Customers who leave have mostly an Electronic check payment method.
+
+```{r}
+contingency_table <- table(customer_churn$Churn, customer_churn$PaymentMethod);
+df_pay_churn <- as.data.frame.matrix(contingency_table)
+barplot(t(df_pay_churn), beside = TRUE, legend.text = TRUE, col = c("red", "blue", "green", "purple"), main = "Churn by Payment Method", xlab = "Payment Method", ylab = "Count")
+```
+
 There is no significant association between gender and churn.
 
 ```{r}
@@ -472,14 +481,13 @@ plot(allEffects(model_numeric_basic))
 influencePlot(model_numeric_basic)
 ```
 
-The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 12.097. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
+The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 17.745. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
 
 ```{r}
 model_numeric_best <- glm(
   Churn ~ tenure
-  + MonthlyCharges
-  + log(TotalCharges + 0.01)
-  + tenure * MonthlyCharges * log(TotalCharges + 0.01),
+  * MonthlyCharges
+  * log(TotalCharges + 0.01),
   data = customer_churn,
   family = binomial
 )
@@ -489,3 +497,59 @@ anova(model_numeric_basic, model_numeric_best, test = "Chisq")
 
 AIC(model_numeric_basic, model_numeric_best)
 ```
+
+## Categorical variables
+
+We first add categorical variables one by one to observe the impact of each categorical variable on the model. The variable f.tenure is excluded from consideration, as its inclusion does not result in a significantly improved fit. However, the remaining categorical variables examined in the Profiling segment substantially enhance the model, evidenced by a notable difference in deviance equal to 143.49.
+
+```{r}
+m1f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract,
+  data = customer_churn,
+  family = binomial
+)
+
+m2f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract
+  + f.tenure,
+  data = customer_churn,
+  family = binomial
+)
+
+anova(m1f, m2f, test = "Chisq")
+
+m3f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup,
+  data = customer_churn,
+  family = binomial
+)
+
+anova(m2f, m3f, test = "Chisq")
+
+m4f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup + DeviceProtection,
+  data = customer_churn,
+  family = binomial
+)
+
+anova(m3f, m4f, test = "Chisq")
+```
+
+Residual analysis: unusual and influent data filtering.
+
+```{r}
+
+```
+
