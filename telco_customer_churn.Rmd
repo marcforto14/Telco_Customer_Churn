@@ -500,7 +500,7 @@ AIC(model_numeric_basic, model_numeric_best)
 
 ## Categorical variables
 
-We first add categorical variables one by one to observe the impact of each categorical variable on the model. The variable f.tenure is excluded from consideration, as its inclusion does not result in a significantly improved fit. However, the remaining categorical variables examined in the Profiling segment substantially enhance the model, evidenced by a notable difference in deviance equal to 143.49.
+We first add categorical variables one by one to observe the impact of each categorical variable on the model. The variable f.tenure is excluded from consideration, as its inclusion does not result in a significantly improved fit. However, the remaining categorical variables, which exhibit a higher influence on Churn as analyzed in the Profiling segment, substantially enhance the model. This improvement is evident through a noticeable difference in deviance. In the case of the DeviceProtection variable, ANOVA indicates that the models are predicting the same outcomes, leading us to conclude our additions there. Further validation through the AIC test and step demonstrates that the m5f model is the best one.
 
 ```{r}
 m1f <- glm(
@@ -522,9 +522,31 @@ m2f <- glm(
   family = binomial
 )
 
-anova(m1f, m2f, test = "Chisq")
+anova(m1f, m2f, test = "Chisq")# No improvement
 
 m3f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract + OnlineSecurity + TechSupport + InternetService,
+  data = customer_churn,
+  family = binomial
+)
+
+anova(m1f, m3f, test = "Chisq")
+
+m4f <- glm(
+  Churn ~ tenure
+  * MonthlyCharges
+  * log(TotalCharges + 0.01)
+  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod,
+  data = customer_churn,
+  family = binomial
+)
+
+anova(m3f, m4f, test = "Chisq")
+
+m5f <- glm(
   Churn ~ tenure
   * MonthlyCharges
   * log(TotalCharges + 0.01)
@@ -533,9 +555,9 @@ m3f <- glm(
   family = binomial
 )
 
-anova(m2f, m3f, test = "Chisq")
+anova(m4f, m5f, test = "Chisq")
 
-m4f <- glm(
+m6f <- glm(
   Churn ~ tenure
   * MonthlyCharges
   * log(TotalCharges + 0.01)
@@ -544,10 +566,22 @@ m4f <- glm(
   family = binomial
 )
 
-anova(m3f, m4f, test = "Chisq")
+anova(m5f, m6f, test = "Chisq")# No improvement
+
+AIC(m3f, m4f, m5f)
+step(m5f, trace = 0)
 ```
 
-Residual analysis: unusual and influent data filtering.
+Residual analysis: unusual and influent data filtering. Missing analysis
+
+```{r}
+residualPlots(m5f, layout=c(1,2))
+plot(allEffects(m5f), ask = FALSE)
+influencePlot(m5f)
+Boxplot(cooks.distance(m5f))
+```
+
+Interactions
 
 ```{r}
 
