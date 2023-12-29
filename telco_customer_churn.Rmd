@@ -457,7 +457,9 @@ The numeric variables model fits the data very poorly (null deviance is 6418) al
 
 ```{r}
 model_numeric_basic <- glm(
-  Churn ~ tenure + MonthlyCharges + log(TotalCharges + 0.01),
+  Churn ~ tenure
+  + MonthlyCharges
+  + log(TotalCharges + 0.01),
   data = customer_churn,
   family = binomial
 )
@@ -481,11 +483,11 @@ plot(allEffects(model_numeric_basic))
 influencePlot(model_numeric_basic)
 ```
 
-The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 17.745. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
+The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 37. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
 
 ```{r}
 model_numeric_best <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01),
   data = customer_churn,
@@ -504,7 +506,7 @@ We first add categorical variables one by one to observe the impact of each cate
 
 ```{r}
 m1f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract,
@@ -513,7 +515,7 @@ m1f <- glm(
 )
 
 m2f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract
@@ -525,7 +527,7 @@ m2f <- glm(
 anova(m1f, m2f, test = "Chisq")# No improvement
 
 m3f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract + OnlineSecurity + TechSupport + InternetService,
@@ -536,7 +538,7 @@ m3f <- glm(
 anova(m1f, m3f, test = "Chisq")
 
 m4f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod,
@@ -547,7 +549,7 @@ m4f <- glm(
 anova(m3f, m4f, test = "Chisq")
 
 m5f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup,
@@ -558,7 +560,7 @@ m5f <- glm(
 anova(m4f, m5f, test = "Chisq")
 
 m6f <- glm(
-  Churn ~ tenure
+  Churn ~ log(tenure + 0.01)
   * MonthlyCharges
   * log(TotalCharges + 0.01)
   + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup + DeviceProtection,
@@ -575,7 +577,7 @@ step(m5f, trace = 0)
 Residual analysis: unusual and influent data filtering. Missing analysis
 
 ```{r}
-residualPlots(m5f, layout=c(1,2))
+residualPlots(m5f, layout =c(1,2))
 plot(allEffects(m5f), ask = FALSE)
 influencePlot(m5f)
 Boxplot(cooks.distance(m5f))
