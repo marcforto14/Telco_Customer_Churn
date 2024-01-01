@@ -25,6 +25,7 @@ library(missMDA)
 library(ggplot2)
 library(FactoMineR)
 library(chemometrics)
+library(lmtest)
 rm(list = ls())
 customer_churn <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
 par(mfrow = c(1, 1))
@@ -483,109 +484,124 @@ plot(allEffects(model_numeric_basic))
 influencePlot(model_numeric_basic)
 ```
 
-The formula is modified and the product of the 3 numeric variables is added. This more complex model is significantly better as the difference in deviance is 37. The null hypothesis can be rejected and conclude that the two models are different. In addition, the model is more parsimonious and has a better trade-off between the fit and the complexity of the model.
-
-```{r}
-model_numeric_best <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01),
-  data = customer_churn,
-  family = binomial
-)
-model_numeric_best
-
-anova(model_numeric_basic, model_numeric_best, test = "Chisq")
-
-AIC(model_numeric_basic, model_numeric_best)
-```
-
 ## Categorical variables
 
-We first add categorical variables one by one to observe the impact of each categorical variable on the model. The variable f.tenure is excluded from consideration, as its inclusion does not result in a significantly improved fit. However, the remaining categorical variables, which exhibit a higher influence on Churn as analyzed in the Profiling segment, substantially enhance the model. This improvement is evident through a noticeable difference in deviance. In the case of the DeviceProtection variable, ANOVA indicates that the models are predicting the same outcomes, leading us to conclude our additions there. Further validation through the AIC test and step demonstrates that the m5f model is the best one.
+We initially modify the level "No internet service" to "No" for all internet-related features. This adjustment helps prevent aliasing and collinearity issues among these variables.
+Afterwards we added all the categorical variables to our model and created a new model with the output model produced by step.
+We then computed the Variance Inflation Factor (VIF), which assesses whether a variable exhibits excessive correlation with other predictors, rendering it redundant in the model. In our analysis, log(tenure + 0.01), MonthlyCharges, log(TotalCharges + 0.01), InternetService, and MultipleLines demonstrated relatively high VIF values, indicating a notable level of multicollinearity among these variables. Consequently, we opted to exclude MonthlyCharges and log(TotalCharges + 0.01) from the model due to their significant correlation with other variables. These results lead to a loss of deviance, but there is no apparent collinearity in our model.
 
 ```{r}
+library(dplyr)
+customer_churn <- customer_churn %>%
+  mutate(
+    OnlineSecurity = recode(OnlineSecurity, "No internet service" = "No"),
+    TechSupport = recode(TechSupport, "No internet service" = "No"),
+    OnlineBackup = recode(OnlineBackup, "No internet service" = "No"),
+    DeviceProtection = recode(DeviceProtection, "No internet service" = "No"),
+    StreamingTV = recode(StreamingTV, "No internet service" = "No"),
+    StreamingMovies = recode(StreamingMovies, "No internet service" = "No")
+  )
+
 m1f <- glm(
   Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract,
+  + MonthlyCharges
+  + log(TotalCharges + 0.01)
+  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod 
+  + OnlineBackup + MultipleLines + PaperlessBilling + SeniorCitizen + Partner 
+  + gender + DeviceProtection + StreamingMovies + StreamingTV + PhoneService 
+  + Dependents + f.MonthlyCharges + f.tenure + f.TotalCharges,
   data = customer_churn,
   family = binomial
 )
 
-m2f <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract
-  + f.tenure,
-  data = customer_churn,
-  family = binomial
-)
+m2f <- step(m1f, trace = 0);m2f
+vif(m2f)
 
-anova(m1f, m2f, test = "Chisq")# No improvement
+# cor(
+#   cbind(
+#     log(customer_churn$tenure + 0.01),
+#     customer_churn$MonthlyCharges,
+#     log(customer_churn$TotalCharges + 0.01),
+#   )
+# )
 
-m3f <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract + OnlineSecurity + TechSupport + InternetService,
-  data = customer_churn,
-  family = binomial
-)
+m3f <- glm(formula = Churn ~ log(tenure + 0.01) + Contract + OnlineSecurity + TechSupport + InternetService + 
+    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
-anova(m1f, m3f, test = "Chisq")
-
-m4f <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod,
-  data = customer_churn,
-  family = binomial
-)
-
-anova(m3f, m4f, test = "Chisq")
-
-m5f <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup,
-  data = customer_churn,
-  family = binomial
-)
-
-anova(m4f, m5f, test = "Chisq")
-
-m6f <- glm(
-  Churn ~ log(tenure + 0.01)
-  * MonthlyCharges
-  * log(TotalCharges + 0.01)
-  + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod + OnlineBackup + DeviceProtection,
-  data = customer_churn,
-  family = binomial
-)
-
-anova(m5f, m6f, test = "Chisq")# No improvement
-
-AIC(m3f, m4f, m5f)
-step(m5f, trace = 0)
+anova(m2f, m3f, test = "Chisq")
+vif(m3f)
 ```
 
-Residual analysis: unusual and influent data filtering. Missing analysis
+There is still a heteroscedasticity problem, variance of the residuals is not constant across different values of the predictor nor the fitted values. The residuals get larger as the prediction moves from small to large or from large to small.
+
+In the influence plot, residuals still range from -2 to 3. However, the Cook's distance has decreased, indicating that the overall fit of the model is more robust, and individual observations have a lesser impact on the results. However, some observations with medium leverage persist. Nevertheless, these observations demonstrate a low to medium Cook's distance, indicating that they do not exert a substantial influence on the fitted values or estimated coefficients.
 
 ```{r}
-residualPlots(m5f, layout =c(1,2))
-plot(allEffects(m5f), ask = FALSE)
-influencePlot(m5f)
-Boxplot(cooks.distance(m5f))
+residualPlots(m3f, layout =c(1,2))
+influencePlot(m3f)
 ```
 
-Interactions
+## Main effects and interactions
+
+We started by introducing an interaction between log(tenure + 0.01) and Contract. The comparison between the models (m3f and m3i) revealed a statistically significant improvement, indicating that the interaction term enhances the model's fit. Next, we introduced an interaction between SeniorCitizen and PaymentMethod. Similar to the previous case, the comparison between models (m3i and m4i) showed a significant improvement, suggesting that the interaction term contributes significantly to the model. Finally, we explored the interaction between InternetService and MultipleLines. However, the comparison between models (m4i and m5i) did not yield statistical significance, indicating that this particular interaction did not significantly enhance the model. We further compared the models using the AIC. The model with the lowest AIC, in this case, m4i, is considered the best among the tested models.
 
 ```{r}
+#tenure and contract
+m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
+           + PaperlessBilling + SeniorCitizen + PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
+anova( m3f, m3i, test="Chisq")#significant
+waldtest( m3f, m3i, test="Chisq" )
+
+# SeniorCitizen and PaymentMethod
+m4i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
+           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+
+anova( m3i, m4i, test="Chisq")#significant
+waldtest( m3i, m4i, test="Chisq" )
+
+# InternetService and MultipleLines
+m5i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService * MultipleLines 
+           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+
+anova( m4i, m5i, test="Chisq")#no significant
+waldtest( m4i, m5i, test="Chisq" )
+
+AIC(m3f, m3i, m4i)
+```
+
+We subsequently introduced the polynomial term for tenure, further enhancing our model.
+
+```{r}
+m6i <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
+           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+
+anova(m4i, m6i, test="Chisq")#significant
+waldtest(m4i, m6i, test="Chisq")
+AIC(m4i, m6i)
+```
+
+Final residuals, falta analysis
+
+```{r}
+# Diagnostics
+marginalModelPlots(m6i,id=list(labels=row.names(customer_churn),method=abs(cooks.distance(m6i)), n=5))
+
+residualPlots(m6i, layout=c(2, 2))
+llnrem<-influencePlot(m6i,id=list(n=3) );llnrem
+
+llistal<-Boxplot(hatvalues(m6i), id.n=10)
+abline(h=4*length(coef(m6i))/nrow(customer_churn))
+hatvalues(m6i)[llistal]
+
+llistac<-Boxplot(cooks.distance(m6i), id=list(labels=rownames(customer_churn)))
+cooks.distance(m6i)[llistac]
+customer_churn[llistac,]
+llrem <- which( rownames(customer_churn) %in% c("3972","659","5948"));llrem
+
+customer_churn <- customer_churn[-llrem,]
+
+final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
+           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 ```
 
