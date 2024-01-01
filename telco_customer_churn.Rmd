@@ -538,6 +538,7 @@ In the influence plot, residuals still range from -2 to 3. However, the Cook's d
 
 ```{r}
 residualPlots(m3f, layout =c(1,2))
+
 influencePlot(m3f)
 ```
 
@@ -581,13 +582,15 @@ waldtest(m4i, m6i, test="Chisq")
 AIC(m4i, m6i)
 ```
 
-Final residuals, falta analysis
+Following the residual analysis, it is evident that a heteroscedasticity issue persists. In the influence plot, residuals still range from -2 to 3, and there has been a slight increase in Cook's distance. However, the latter remains notably low. Additionally, a new observation with higher leverage has emerged. Despite this, the observation exhibits a low Cook's distance, signifying a limited impact on the fitted values or estimated coefficients.
+
+To address these concerns and enhance the model's robustness, we made the decision to exclude three observations with the highest Cook's distance. These particular observations pertain to churn customers with a Two-Year or One-Year Contract, No InternetService, and Medium or Low TotalCharges. This exclusion aims to mitigate the influence of individual observations, thereby contributing to a more resilient model.
 
 ```{r}
-# Diagnostics
 marginalModelPlots(m6i,id=list(labels=row.names(customer_churn),method=abs(cooks.distance(m6i)), n=5))
 
 residualPlots(m6i, layout=c(2, 2))
+
 llnrem<-influencePlot(m6i,id=list(n=3) );llnrem
 
 llistal<-Boxplot(hatvalues(m6i), id.n=10)
