@@ -454,34 +454,66 @@ hist(
 )
 ```
 
-The numeric variables model fits the data very poorly (null deviance is 6418) although the residual deviance is slightly better (4990). The Akaike Information Criterion (AIC) which measures the trade-off between the fit and complexity of the model is 4998, which means that the model is not very parsimonious.
+As seen in class, numeric variables are considered separately applying link functions such as the logit or the orthogonal polynomials where the degree was chosen based on the AIC and BIC criteria avoiding over/underfitting.
 
 ```{r}
-model_numeric_basic <- glm(
-  Churn ~ tenure
-  + MonthlyCharges
-  + log(TotalCharges + 0.01),
+model_numeric_total_charges <- glm(
+  Churn ~ poly(log(TotalCharges + 0.01), 4),
   data = customer_churn,
   family = binomial
 )
-model_numeric_basic
+model_numeric_total_charges
 ```
 
-There is a heteroscedasticity problem, variance of the residuals is not constant across different values of the predictor nor the fitted values.
-
-Null hypothesis can not be rejected, model is nonlinear, specially on the log variable.
-
-Observations have large residuals, high leverage and high Cook's distance, meaning that they do not fit the model well and have a lot of influence on the model. 
+```{r}
+model_numeric_tenure <- glm(
+  Churn ~ log(tenure + 0.01) + I(log(tenure + 0.01)^2),
+  data = customer_churn,
+  family = binomial
+)
+model_numeric_tenure
+```
 
 ```{r}
-residualPlots(model_numeric_basic)
+model_numeric_monthy_charges <- glm(
+  Churn ~ poly(MonthlyCharges, 4),
+  data = customer_churn,
+  family = binomial
+)
+model_numeric_monthy_charges
+```
 
-marginalModelPlots(model_numeric_basic)
+The additive model results in better AIC and residuals 
+
+```{r}
+model_numeric_additive <- glm(
+  Churn ~ log(tenure + 0.01) + I(log(tenure + 0.01)^2)
+  + poly(MonthlyCharges, 4)
+  + poly(log(TotalCharges + 0.01), 4),
+  data = customer_churn,
+  family = binomial
+)
+model_numeric_additive
+```
+
+
+The first graph shows how well the model fits the data, and reveals that the model is not linear or homoscedastic, and has some outliers.
+
+The second graph shows how each predictor variable affects the response variable, and reveals that the relationships are nonlinear and have different shapes.
+
+The third graph shows the predicted probability of churn for different values of the predictor variables, and reveals that the interaction effects are not very strong, and the marginal effects are consistent with the second graph.
+
+The fourth graph shows the influence of each observation on the model, and reveals that most of the observations are not influential and fit the model well, but some are influential and do not fit the model well, and are potential outliers.
+
+```{r}
+residualPlots(model_numeric_additive)
+
+marginalModelPlots(model_numeric_additive)
 
 library(effects)
-plot(allEffects(model_numeric_basic))
+plot(allEffects(model_numeric_additive))
 
-influencePlot(model_numeric_basic)
+influencePlot(model_numeric_additive)
 ```
 
 ## Categorical variables
