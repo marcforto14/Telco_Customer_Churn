@@ -519,8 +519,9 @@ influencePlot(model_numeric_additive)
 ## Categorical variables
 
 We initially modify the level "No internet service" to "No" for all internet-related features. This adjustment helps prevent aliasing and collinearity issues among these variables.
+We then conduct a VIF analysis on the numerical model and observe excessively high values. As a result, we decide to exclude the variable poly(log(TotalCharges + 0.01), 4) to mitigate collinearity.
 Afterwards we added all the categorical variables to our model and created a new model with the output model produced by step.
-We then computed the Variance Inflation Factor (VIF), which assesses whether a variable exhibits excessive correlation with other predictors, rendering it redundant in the model. In our analysis, log(tenure + 0.01), MonthlyCharges, log(TotalCharges + 0.01), InternetService, and MultipleLines demonstrated relatively high VIF values, indicating a notable level of multicollinearity among these variables. Consequently, we opted to exclude MonthlyCharges and log(TotalCharges + 0.01) from the model due to their significant correlation with other variables. These results lead to a loss of deviance, but there is no apparent collinearity in our model.
+We then computed the Variance Inflation Factor (VIF), which assesses whether a variable exhibits excessive correlation with other predictors, rendering it redundant in the model. In our analysis, poly(tenure, 2), poly(MonthlyCharges, 4), InternetService, MultipleLines, f.tenure and f.TotalCharges demonstrated relatively high VIF values, indicating a notable level of multicollinearity among these variables. Consequently, we opted to exclude poly(MonthlyCharges, 4), f.tenure and f.TotalCharges from the model due to their significant correlation with other variables. These results lead to a loss of deviance, but there is no apparent collinearity in our model.
 
 ```{r}
 library(dplyr)
@@ -534,10 +535,18 @@ customer_churn <- customer_churn %>%
     StreamingMovies = recode(StreamingMovies, "No internet service" = "No")
   )
 
+vif(model_numeric_additive)
+model_numeric_final <- glm(
+  Churn ~ poly(tenure, 2)
+  + poly(MonthlyCharges, 4),
+  data = customer_churn,
+  family = binomial
+)
+vif(model_numeric_final)
+
 m1f <- glm(
-  Churn ~ log(tenure + 0.01)
-  + MonthlyCharges
-  + log(TotalCharges + 0.01)
+  Churn ~ poly(tenure, 2)
+  + poly(MonthlyCharges, 4)
   + Contract + OnlineSecurity + TechSupport + InternetService + PaymentMethod 
   + OnlineBackup + MultipleLines + PaperlessBilling + SeniorCitizen + Partner 
   + gender + DeviceProtection + StreamingMovies + StreamingTV + PhoneService 
@@ -557,8 +566,10 @@ vif(m2f)
 #   )
 # )
 
-m3f <- glm(formula = Churn ~ log(tenure + 0.01) + Contract + OnlineSecurity + TechSupport + InternetService + 
-    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+m3f <- glm(formula = Churn ~ poly(tenure, 2) + Contract + OnlineSecurity + TechSupport + InternetService + 
+    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+    StreamingMovies + StreamingTV, 
+    family = binomial, data = customer_churn)
 
 anova(m2f, m3f, test = "Chisq")
 vif(m3f)
@@ -566,52 +577,73 @@ vif(m3f)
 
 There is still a heteroscedasticity problem, variance of the residuals is not constant across different values of the predictor nor the fitted values. The residuals get larger as the prediction moves from small to large or from large to small.
 
-In the influence plot, residuals still range from -2 to 3. However, the Cook's distance has decreased, indicating that the overall fit of the model is more robust, and individual observations have a lesser impact on the results. However, some observations with medium leverage persist. Nevertheless, these observations demonstrate a low to medium Cook's distance, indicating that they do not exert a substantial influence on the fitted values or estimated coefficients.
+In the influence plot, residuals still range from -2 to 3. However, the Cook's distance has decreased, indicating that the overall fit of the model is more robust, and individual observations have a lesser impact on the results. Some observations with low leverage persist. Nevertheless, these observations demonstrate a low to medium Cook's distance, indicating that they do not exert a substantial influence on the fitted values or estimated coefficients.
 
 ```{r}
-residualPlots(m3f, layout =c(1,2))
+residualPlots(m3f, layout =c(1,2), ask = FALSE)
 
 influencePlot(m3f)
 ```
 
 ## Main effects and interactions
 
-We started by introducing an interaction between log(tenure + 0.01) and Contract. The comparison between the models (m3f and m3i) revealed a statistically significant improvement, indicating that the interaction term enhances the model's fit. Next, we introduced an interaction between SeniorCitizen and PaymentMethod. Similar to the previous case, the comparison between models (m3i and m4i) showed a significant improvement, suggesting that the interaction term contributes significantly to the model. Finally, we explored the interaction between InternetService and MultipleLines. However, the comparison between models (m4i and m5i) did not yield statistical significance, indicating that this particular interaction did not significantly enhance the model. We further compared the models using the AIC. The model with the lowest AIC, in this case, m4i, is considered the best among the tested models.
+We begin by applying a log transformation to the poly(tenure, 2) variable, ensuring a constant variance of the error term across different values of the predictor variable. This modification results in a better AIC.
+
+Subsequently, we introduce an interaction between poly(log(tenure + 0.01), 2) and Contract. However, this interaction triggers a warning, suggesting difficulties in logistic regression model convergence, potentially due to perfect separation or quasi-separation in the data. To address this, we opt to eliminate the polynomial term from the tenure variable, creating the model m2i_2 with the interaction between log(tenure + 0.01) and Contract. Comparative analysis between models (m1i and m2i_2) demonstrates a statistically significant improvement, indicating that the interaction term enhances the model's fit.
+
+Moving forward, we incorporate an interaction between SeniorCitizen and PaymentMethod. Similar to the earlier case, the comparison between models (m2i_2 and m3i) reveals a noteworthy improvement, emphasizing the significant contribution of the interaction term to the model.
+
+Lastly, we explore the interaction between InternetService and MultipleLines. Unfortunately, the comparison between models (m3i and m4i) does not yield statistical significance, indicating that this specific interaction does not significantly enhance the model. To finalize our assessment, we compare the models using the AIC. The model with the lowest AIC, m3i in this instance, is deemed the best among the tested models.
 
 ```{r}
+#poly(log(tenure + 0.01), 2)
+m1i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) + Contract + OnlineSecurity + TechSupport + InternetService + 
+    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+    StreamingMovies + StreamingTV, 
+    family = binomial, data = customer_churn)
+anova( m3f, m1i, test="Chisq")#significant
+AIC(m3f, m1i)
 #tenure and contract
-m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
-           + PaperlessBilling + SeniorCitizen + PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+m2i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) * Contract + OnlineSecurity + TechSupport + InternetService + 
+    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+    StreamingMovies + StreamingTV, 
+    family = binomial, data = customer_churn)
 
-anova( m3f, m3i, test="Chisq")#significant
-waldtest( m3f, m3i, test="Chisq" )
+m2i_2 <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + 
+    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+    StreamingMovies + StreamingTV, 
+    family = binomial, data = customer_churn)
+
+anova( m1i, m2i_2, test="Chisq")#significant
+waldtest( m1i, m2i_2, test="Chisq")
 
 # SeniorCitizen and PaymentMethod
-m4i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
-           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
-
-anova( m3i, m4i, test="Chisq")#significant
-waldtest( m3i, m4i, test="Chisq" )
+m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + 
+    MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod + 
+    StreamingMovies + StreamingTV, 
+    family = binomial, data = customer_churn)
+anova( m2i_2, m3i, test="Chisq")#significant
+waldtest( m2i_2, m3i, test="Chisq" )
 
 # InternetService and MultipleLines
-m5i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService * MultipleLines 
+m4i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService * MultipleLines 
            + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
-anova( m4i, m5i, test="Chisq")#no significant
-waldtest( m4i, m5i, test="Chisq" )
+anova( m3i, m4i, test="Chisq")#no significant
+waldtest( m3i, m4i, test="Chisq" )
 
-AIC(m3f, m3i, m4i)
+AIC(m2i_2, m3i, m4i)
 ```
 
 We subsequently introduced the polynomial term for tenure, further enhancing our model.
 
 ```{r}
-m6i <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
+m5i <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
            + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
-anova(m4i, m6i, test="Chisq")#significant
-waldtest(m4i, m6i, test="Chisq")
-AIC(m4i, m6i)
+anova(m3i, m5i, test="Chisq")#significant
+waldtest(m3i, m5i, test="Chisq")
+AIC(m3i, m5i)
 ```
 
 Following the residual analysis, it is evident that a heteroscedasticity issue persists. In the influence plot, residuals still range from -2 to 3, and there has been a slight increase in Cook's distance. However, the latter remains notably low. Additionally, a new observation with higher leverage has emerged. Despite this, the observation exhibits a low Cook's distance, signifying a limited impact on the fitted values or estimated coefficients.
@@ -619,30 +651,29 @@ Following the residual analysis, it is evident that a heteroscedasticity issue p
 To address these concerns and enhance the model's robustness, we made the decision to exclude three observations with the highest Cook's distance. These particular observations pertain to churn customers with a Two-Year or One-Year Contract, No InternetService, and Medium or Low TotalCharges. This exclusion aims to mitigate the influence of individual observations, thereby contributing to a more resilient model.
 
 ```{r}
-marginalModelPlots(m6i,id=list(labels=row.names(customer_churn),method=abs(cooks.distance(m6i)), n=5))
+marginalModelPlots(m5i,id=list(labels=row.names(customer_churn),method=abs(cooks.distance(m5i)), n=5))
 
-residualPlots(m6i, layout=c(2, 2))
+residualPlots(m5i, layout=c(2, 2), ask = FALSE)
 
-llnrem<-influencePlot(m6i,id=list(n=3) );llnrem
+llnrem<-influencePlot(m5i,id=list(n=3) );llnrem
 
-llistal<-Boxplot(hatvalues(m6i), id.n=10)
-abline(h=4*length(coef(m6i))/nrow(customer_churn))
-hatvalues(m6i)[llistal]
+llistal<-Boxplot(hatvalues(m5i), id.n=10)
+abline(h=4*length(coef(m5i))/nrow(customer_churn))
+hatvalues(m5i)[llistal]
 
-llistac<-Boxplot(cooks.distance(m6i), id=list(labels=rownames(customer_churn)))
-cooks.distance(m6i)[llistac]
+llistac<-Boxplot(cooks.distance(m5i), id=list(labels=rownames(customer_churn)))
+cooks.distance(m5i)[llistac]
 customer_churn[llistac,]
-llrem <- which( rownames(customer_churn) %in% c("3972","659","5948"));llrem
+llrem <- which( rownames(customer_churn) %in% c("3972","659","5948"))
 
 customer_churn <- customer_churn[-llrem,]
 
-final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
-           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 ```
 
 # Goodness of fit and Model Interpretation
 
-The McFadden pseudo R-squared has a moderate value which suggests that the model exlains some of the variation in the response variable. However, null hypothesis is rejected due to potential collinearity problems. Based on these results, we can say that the model has a moderate predictive power, without a great goodness-of-fit.
+The McFadden pseudo R-squared has a moderate value which suggests that the model explains some of the variation in the response variable. However, null hypothesis is rejected due to potential collinearity problems. Based on these results, we can say that the model has a moderate predictive power, without a great goodness-of-fit.
 
 ```{r}
 library(DescTools)
@@ -682,8 +713,7 @@ tt_train <- table(predictions_train, customer_churn$Churn)
 tt_train
 ```
 
-The metrics show that the model correctly classified about 81% of the training data, 67% of the observations that it predicted as positive and 54% of the observations that are actually positive. The F1 score of 60% means that the model has a moderate performance in terms of both precission and recall.
-
+The metrics show that the model correctly classified about 81% of the training data, 67% of the observations that it predicted as positive and 54% of the observations that are actually positive. The F1 score of 60% means that the model has a moderate performance in terms of both precision and recall.
 
 ```{r}
 accuracy_train <- sum(diag(tt_train)) / sum(tt_train)
