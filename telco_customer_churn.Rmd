@@ -354,7 +354,7 @@ train_index <- sample(
   size = floor(0.8 * nrow(customer_churn))
 )
 
-customer_churn_test <- customer_churn[-train_index, ]
+customer_churn_test_split <- customer_churn[-train_index, ]
 customer_churn <- customer_churn[train_index, ]
 ```
 
@@ -467,7 +467,7 @@ model_numeric_total_charges
 
 ```{r}
 model_numeric_tenure <- glm(
-  Churn ~ log(tenure + 0.01) + I(log(tenure + 0.01)^2),
+  Churn ~ poly(tenure, 2),
   data = customer_churn,
   family = binomial
 )
@@ -487,7 +487,7 @@ The additive model results in better AIC and residuals
 
 ```{r}
 model_numeric_additive <- glm(
-  Churn ~ log(tenure + 0.01) + I(log(tenure + 0.01)^2)
+  Churn ~ poly(tenure, 2)
   + poly(MonthlyCharges, 4)
   + poly(log(TotalCharges + 0.01), 4),
   data = customer_churn,
@@ -640,3 +640,118 @@ final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contr
            + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 ```
 
+# Goodness of fit and Model Interpretation
+
+The McFadden pseudo R-squared has a moderate value which suggests that the model exlains some of the variation in the response variable. However, null hypothesis is rejected due to potential collinearity problems. Based on these results, we can say that the model has a moderate predictive power, without a great goodness-of-fit.
+
+```{r}
+library(DescTools)
+library(ResourceSelection)
+library("ROCR")
+library(caret)
+
+PseudoR2(final_model, which = "all")
+
+hoslem.test(as.numeric(customer_churn$Churn), fitted(final_model))
+
+model_columns <- c(
+  "SeniorCitizen",
+  "Dependents",
+  "tenure",
+  "MultipleLines",
+  "InternetService",
+  "OnlineSecurity",
+  "TechSupport",
+  "StreamingTV",
+  "StreamingMovies",
+  "Contract",
+  "PaperlessBilling",
+  "PaymentMethod"
+)
+
+customer_churn_train <- customer_churn[model_columns]
+
+probabilities_train <- predict(
+  final_model,
+  type = "response"
+)
+
+predictions_train <- ifelse(probabilities_train > 0.5, "Yes", "No")
+
+tt_train <- table(predictions_train, customer_churn$Churn)
+tt_train
+```
+
+The metrics show that the model correctly classified about 81% of the training data, 67% of the observations that it predicted as positive and 54% of the observations that are actually positive. The F1 score of 60% means that the model has a moderate performance in terms of both precission and recall.
+
+
+```{r}
+accuracy_train <- sum(diag(tt_train)) / sum(tt_train)
+accuracy_train
+precision_train <- tt_train[2, 2] / (tt_train[2, 2] + tt_train[2, 1])
+precision_train
+recall_train <- tt_train[2, 2] / (tt_train[2, 2] + tt_train[1, 2])
+recall_train
+f1_train <- 2 * (
+  (precision_train * recall_train)
+  / (precision_train + recall_train)
+)
+f1_train
+
+roc_train <- prediction(
+  probabilities_train,
+  customer_churn$Churn
+)
+par(mfrow = c(1, 2))
+plot(performance(roc_train, "err"))
+plot(performance(roc_train, "tpr", "fpr"))
+abline(0, 1, lty = 2)
+```
+
+The accuracy and precision metrics are improved in the test data.
+
+```{r}
+customer_churn_test <- customer_churn_test_split %>%
+  mutate(
+    OnlineSecurity = recode(OnlineSecurity, "No internet service" = "No"),
+    TechSupport = recode(TechSupport, "No internet service" = "No"),
+    OnlineBackup = recode(OnlineBackup, "No internet service" = "No"),
+    DeviceProtection = recode(DeviceProtection, "No internet service" = "No"),
+    StreamingTV = recode(StreamingTV, "No internet service" = "No"),
+    StreamingMovies = recode(StreamingMovies, "No internet service" = "No")
+  )
+
+customer_churn_test <- customer_churn_test[model_columns]
+
+probabilities_test <- predict(
+  final_model,
+  newdata = customer_churn_test
+)
+
+predictions_test <- ifelse(probabilities_test > 0.5, "Yes", "No")
+table(predictions_test)
+table(customer_churn_test$Churn)
+
+tt_test <- table(predictions_test, customer_churn_test_split$Churn)
+accuracy_test <- sum(diag(tt_test)) / sum(tt_test)
+accuracy_test
+
+precision_test <- tt_test[2, 2] / (tt_test[2, 2] + tt_test[2, 1])
+precision_test
+recall_test <- tt_test[2, 2] / (tt_test[2, 2] + tt_test[1, 2])
+recall_test
+f1_test <- 2 * (
+  (precision_test * recall_test)
+  / (precision_test + recall_test)
+)
+f1_test
+
+roc_test <- prediction(
+  probabilities_test,
+  customer_churn_test_split$Churn
+)
+par(mfrow = c(1, 2))
+plot(performance(roc_test, "err"))
+plot(performance(roc_test, "tpr", "fpr"))
+abline(0, 1, lty = 2)
+```
