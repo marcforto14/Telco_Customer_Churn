@@ -322,7 +322,7 @@ sum(customer_churn$InternetService == "No" | customer_churn$OnlineSecurity == "N
 
 After exploring all variables, only 'TotalCharges' exhibits missing data, placing it last in terms of missingness. No variables show univariate outliers, suggesting minimal noise in the dataset.
 
-**Multivariate Outliers**
+###Multivariate Outliers
 
 Moutlier is applied on the 3 only numerical variables to find multivariate outliers. A threshold of 2% is chosen as significance level because it already returns a significant amount of outliers, more exactly around 2.5% of instances.
 There are 2 types of found outliers:
@@ -570,10 +570,9 @@ vif(m2f)
 #   )
 # )
 
-m3f <- glm(formula = Churn ~ poly(tenure, 2) + Contract + OnlineSecurity + TechSupport + InternetService + 
-    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
-    StreamingMovies + StreamingTV, 
-    family = binomial, data = customer_churn)
+m3f <- glm(formula = Churn ~ poly(tenure, 2) + Contract + OnlineSecurity + TechSupport + 
+             InternetService + PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+             StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
 anova(m2f, m3f, test = "Chisq")
 vif(m3f)
@@ -601,37 +600,34 @@ Lastly, we explore the interaction between InternetService and MultipleLines. Un
 
 ```{r}
 #poly(log(tenure + 0.01), 2)
-m1i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) + Contract + OnlineSecurity + TechSupport + InternetService + 
-    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
-    StreamingMovies + StreamingTV, 
-    family = binomial, data = customer_churn)
+m1i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) + Contract + OnlineSecurity + 
+             TechSupport + InternetService + PaymentMethod + MultipleLines + PaperlessBilling + 
+             SeniorCitizen + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 anova( m3f, m1i, test="Chisq")#significant
 AIC(m3f, m1i)
 #tenure and contract
-m2i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) * Contract + OnlineSecurity + TechSupport + InternetService + 
-    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
-    StreamingMovies + StreamingTV, 
-    family = binomial, data = customer_churn)
+m2i <- glm(formula = Churn ~ poly(log(tenure + 0.01), 2) * Contract + OnlineSecurity + 
+             TechSupport + InternetService + PaymentMethod + MultipleLines + PaperlessBilling + 
+             SeniorCitizen + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
-m2i_2 <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + 
-    PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
-    StreamingMovies + StreamingTV, 
-    family = binomial, data = customer_churn)
+m2i_2 <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + 
+               InternetService + PaymentMethod + MultipleLines + PaperlessBilling + SeniorCitizen + 
+               StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
 anova( m1i, m2i_2, test="Chisq")#significant
 # waldtest( m1i, m2i_2, test="Chisq")
 
 # SeniorCitizen and PaymentMethod
-m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + 
-    MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod + 
-    StreamingMovies + StreamingTV, 
-    family = binomial, data = customer_churn)
+m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + 
+             InternetService + MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod + 
+             StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 anova( m2i_2, m3i, test="Chisq")#significant
 waldtest( m2i_2, m3i, test="Chisq" )
 
 # InternetService and MultipleLines
-m4i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService * MultipleLines 
-           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+m4i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + 
+             InternetService * MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod 
+           + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
 
 anova( m3i, m4i, test="Chisq")#no significant
 waldtest( m3i, m4i, test="Chisq" )
@@ -642,8 +638,10 @@ AIC(m2i_2, m3i, m4i)
 We subsequently introduced the polynomial term for tenure, further enhancing our model.
 
 ```{r}
-m5i <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines 
-           + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+m5i <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + 
+             TechSupport + InternetService + MultipleLines + PaperlessBilling + 
+             SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, 
+           family = binomial, data = customer_churn)
 
 anova(m3i, m5i, test="Chisq")#significant
 waldtest(m3i, m5i, test="Chisq")
@@ -672,7 +670,11 @@ llrem <- which( rownames(customer_churn) %in% c("3972","659","5948"))
 
 customer_churn <- customer_churn[-llrem,]
 
-final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + MultipleLines + PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + StreamingTV, family = binomial, data = customer_churn)
+final_model <- glm(formula = Churn ~ poly(tenure,2) + log(tenure + 0.01) * Contract + 
+                     OnlineSecurity + TechSupport + InternetService + MultipleLines + 
+                     PaperlessBilling + SeniorCitizen * PaymentMethod + StreamingMovies + 
+                     StreamingTV, family = binomial, data = customer_churn)
+final_model
 ```
 
 # Goodness of fit and Model Interpretation
