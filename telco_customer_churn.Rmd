@@ -436,7 +436,11 @@ The Categorical Data Analysis shows the 5 most important categorical variables t
 Regarding the quantitative variables, MonthlyCharges is the one which contributes the most to customer churn, while TotalCharges and tenure have the opposite effect (negative correlation).
 
 ```{r}
-catdes(customer_churn, num.var = 21)
+catdes_result <- catdes(customer_churn, num.var = 21)
+
+catdes_result$quanti
+catdes_result$quanti.var
+catdes_result$test.chi2
 ```
 
 # Churn Modeling
@@ -615,7 +619,7 @@ m2i_2 <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + 
     family = binomial, data = customer_churn)
 
 anova( m1i, m2i_2, test="Chisq")#significant
-waldtest( m1i, m2i_2, test="Chisq")
+# waldtest( m1i, m2i_2, test="Chisq")
 
 # SeniorCitizen and PaymentMethod
 m3i <- glm(formula = Churn ~ log(tenure + 0.01) * Contract + OnlineSecurity + TechSupport + InternetService + 
